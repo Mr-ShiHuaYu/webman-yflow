@@ -2,6 +2,8 @@
 
 ## 安装使用
 
+**要求 php>=8.1**
+
 ### 1.确保已经安装了webman
 
 webman安装地址:
@@ -41,7 +43,19 @@ composer require -W webman/admin ~2.0
 composer require ysh/webman-yflow
 ```
 
+## 5.修改config\database.php下的数据库配置
+
+```php
+'database'  => 'test_yflow',
+'username'  => 'root',
+'password'  => 'root',
+'charset'   => 'utf8mb4',
+'collation' => 'utf8mb4_general_ci',
+```
+
 重新访问: http://127.0.0.1:8787/app/admin
+
+可以导入流程定义json文件,位于 插件目录下/测试流程json/leaveFlow-serial1.json
 
 ## yflow 引擎开源地址:
 
