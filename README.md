@@ -23,26 +23,34 @@ composer require ysh/yflow
 
 > 因为webman-yflow内部已经依赖了 yflow 引擎
 
-## 3.安装webman-yflow插件
+## 3.安装webman-admin插件
+
+```php
+composer require -W webman/admin ~2.0
+```
+
+重启webman,参考 https://www.workerman.net/doc/webman/install.html#2.%20%E8%BF%90%E8%A1%8C
+
+访问 http://127.0.0.1:8787/app/admin/ 完成数据库相关配置
+> 无法在composer.josn中依赖webman-admin插件，因为webman-yflow插件安装时,需要写菜单到数据库中,所以,必须保证webman-admin插件安装成功
+>
+
+## 4.安装webman-yflow插件
 
 ```
 composer require ysh/webman-yflow
 ```
 
-
+重新访问: http://127.0.0.1:8787/app/admin
 
 ## yflow 引擎开源地址:
 
 https://github.com/Mr-ShiHuaYu/yflow
 
-
-
 ## 非常感谢 java版本的 warm-flow 项目，为 本项目带来的灵感.
 
 java warm-flow 项目地址:
 https://gitee.com/dromara/warm-flow
-
-
 
 ## 引擎概览
 
