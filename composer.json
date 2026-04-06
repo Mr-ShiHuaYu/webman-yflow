@@ -16,6 +16,7 @@
   "description": "Webman YFlow",
   "require": {
     "php": ">=8.1",
-    "ysh/yflow": "^0.0.1"
+    "ysh/yflow": "^0.0.1",
+    "webman/console": "^2.2"
   }
 }

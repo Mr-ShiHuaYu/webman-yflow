@@ -10,14 +10,19 @@ webman安装地址:
 
 https://www.workerman.net/doc/webman/install.html
 
-```
-# 默认使用交互式安装向导
+#### 1.1默认使用交互式安装向导(二选一,windows下不能使用默认的cmd,选择不了,建议使用git bash)
+
+```php
 composer create-project workerman/webman:~2.0
-# 禁用交互式安装向导
+```
+
+#### 1.2禁用交互式安装向导(二选一,windows下推荐使用)
+
+```php
 composer create-project workerman/webman:~2.0 --no-interaction
 ```
 
-## 2.安装引擎(可以省略)
+### 2.安装工作流引擎(可以省略)
 
 ```
 composer require ysh/yflow
@@ -25,7 +30,7 @@ composer require ysh/yflow
 
 > 因为webman-yflow内部已经依赖了 yflow 引擎
 
-## 3.安装webman-admin插件
+### 3.安装webman-admin插件
 
 ```php
 composer require -W webman/admin ~2.0
@@ -37,13 +42,15 @@ composer require -W webman/admin ~2.0
 > 无法在composer.josn中依赖webman-admin插件，因为webman-yflow插件安装时,需要写菜单到数据库中,所以,必须保证webman-admin插件安装成功
 >
 
-## 4.安装webman-yflow插件
+### 4.安装webman-yflow插件
 
 ```
 composer require ysh/webman-yflow
 ```
 
-## 5.修改config\database.php下的数据库配置
+### 5.修改config\database.php下的数据库配置
+
+> 以下为示例,请根据实际情况修改
 
 ```php
 'database'  => 'test_yflow',
@@ -53,9 +60,34 @@ composer require ysh/webman-yflow
 'collation' => 'utf8mb4_general_ci',
 ```
 
+### 6.执行插件菜单安装
+
+```php
+php webman app-plugin:install yflow
+```
+
 重新访问: http://127.0.0.1:8787/app/admin
 
-可以导入流程定义json文件,位于 插件目录下/测试流程json/leaveFlow-serial1.json
+### 导入预制流程定义json文件
+
+内置了一个简单的串行的流程定义json文件,位于 插件目录下/测试流程json/leaveFlow-serial1.json,可以在流程定左上角导入.
+
+## 卸载插件
+
+### 1.先卸载菜单
+
+```php
+
+php webman app-plugin:uninstall yflow
+```
+
+> 可能会卸载失败,直接删除数据库中的flow_开头的表及test_leave表即可.
+
+### 2.再卸载插件
+
+```php
+composer remove ysh/webman-yflow
+```
 
 ## yflow 引擎开源地址:
 
