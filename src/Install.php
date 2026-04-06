@@ -20,6 +20,7 @@ class Install
     public static function install()
     {
         static::installByRelation();
+        \plugin\yflow\api\Install::install('version');
     }
 
     /**
@@ -29,6 +30,7 @@ class Install
     public static function uninstall()
     {
         self::uninstallByRelation();
+        \plugin\yflow\api\Install::uninstall('version');
     }
 
     /**

@@ -3,8 +3,8 @@
 use support\Request;
 
 return [
-    'debug' => true,
+    'debug'             => true,
     'controller_suffix' => 'Controller',
-    'controller_reuse' => false,
-    'version' => '0.0.1'
+    'controller_reuse'  => false,
+    'version'           => 'v0.0.2'
 ];
