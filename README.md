@@ -1,11 +1,50 @@
-PHP开源工作流引擎yflow的webman插件
+## PHP开源工作流引擎yflow的webman插件
 
-yflow 引擎开源地址:
+## 安装使用
+
+### 1.确保已经安装了webman
+
+webman安装地址:
+
+https://www.workerman.net/doc/webman/install.html
+
+```
+# 默认使用交互式安装向导
+composer create-project workerman/webman:~2.0
+# 禁用交互式安装向导
+composer create-project workerman/webman:~2.0 --no-interaction
+```
+
+## 2.安装引擎(可以省略)
+
+```
+composer require ysh/yflow
+```
+
+> 因为webman-yflow内部已经依赖了 yflow 引擎
+
+## 3.安装webman-yflow插件
+
+```
+composer require ysh/webman-yflow
+```
+
+
+
+## yflow 引擎开源地址:
+
 https://github.com/Mr-ShiHuaYu/yflow
 
-非常感谢 java版本的 warm-flow 项目，为 本项目带来的灵感.
+
+
+## 非常感谢 java版本的 warm-flow 项目，为 本项目带来的灵感.
+
 java warm-flow 项目地址:
 https://gitee.com/dromara/warm-flow
+
+
+
+## 引擎概览
 
 ![warm-flow](https://foruda.gitee.com/images/1754530281717340950/b531c256_2218307.png)
 
