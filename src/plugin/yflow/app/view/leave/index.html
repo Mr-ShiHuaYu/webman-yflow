@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>请假申请管理</title>
+    <link rel="stylesheet" href="/app/admin/component/pear/css/pear.css" />
+    <link rel="stylesheet" href="/app/admin/admin/css/reset.css" />
+    <style>
+        .layui-table-cell {
+            height: auto !important;
+            line-height: 24px !important;
+            white-space: normal !important;
+            word-break: break-all !important;
+        }
+
+        .layui-table {
+            width: 100% !important;
+        }
+    </style>
+</head>
+
+<body class="pear-container">
+    <div class="layui-card">
+        <div class="layui-card-body">
+            <form class="layui-form" action="">
+                <div class="layui-form-item">
+                    <div class="layui-inline">
+                        <label class="layui-form-label">请假类型</label>
+                        <div class="layui-input-inline">
+                            <input type="text" name="type" id="type" placeholder="请输入请假类型" class="layui-input">
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <label class="layui-form-label">请假天数</label>
+                        <div class="layui-input-inline">
+                            <input type="text" name="day" id="day" placeholder="请输入请假天数" class="layui-input">
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <label class="layui-form-label">流程状态</label>
+                        <div class="layui-input-inline">
+                            <input type="text" name="flow_status" id="flow_status" placeholder="请输入流程状态"
+                                class="layui-input">
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <label class="layui-form-label">创建者</label>
+                        <div class="layui-input-inline">
+                            <input type="text" name="create_by" id="create_by" placeholder="请输入创建者" class="layui-input">
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <label class="layui-form-label">创建时间</label>
+                        <div class="layui-input-inline">
+                            <input type="text" name="create_time" id="create_time" placeholder="请选择创建时间"
+                                class="layui-input" readonly>
+                        </div>
+                    </div>
+                    <div class="layui-inline">
+                        <button type="button" class="pear-btn pear-btn-primary pear-btn-sm" id="search">搜索</button>
+                        <button type="button" class="pear-btn pear-btn-sm" id="reset">重置</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="layui-card">
+        <div class="layui-card-body">
+            <div class="layui-btn-group">
+                <button type="button" class="pear-btn pear-btn-primary pear-btn-sm" id="add"
+                    style="margin-right: 10px;">新增</button>
+                <button type="button" class="pear-btn pear-btn-success pear-btn-sm" id="edit"
+                    style="margin-right: 10px;">修改</button>
+                <button type="button" class="pear-btn pear-btn-danger pear-btn-sm" id="delete"
+                    style="margin-right: 10px;">删除</button>
+            </div>
+
+            <table id="leaveTable" lay-filter="leaveTable"></table>
+        </div>
+    </div>
+
+    <!-- 流程图查看对话框 -->
+    <div id="flowChartDialog" style="display: none;">
+        <img id="flowChartImg" width="100%" style="margin:0 auto" />
+    </div>
+
+    <script src="/app/admin/component/layui/layui.js?v=2.8.12"></script>
+    <script src="/app/admin/component/pear/pear.js"></script>
+    <script src="/app/yflow/api/flow/leave.js"></script>
+    <script src="/app/yflow/api/flow/flowDict.js"></script>
+
+    <script>
+        layui.use(['table', 'layer', 'form', 'laydate', 'popup'], function () {
+            var table = layui.table;
+            var layer = layui.layer;
+            var form = layui.form;
+            var laydate = layui.laydate;
+            var $ = layui.$;
+
+            // 日期选择器
+            laydate.render({
+                elem: '#create_time',
+                range: true,
+                format: 'yyyy-MM-dd'
+            });
+
+            // 表格初始化
+            var tableIns = table.render({
+                elem: '#leaveTable',
+                url: '/app/yflow/leave/list',
+                method: 'get',
+                page: true,
+                size: 'sm',
+                limit: 10,
+                limits: [10, 20, 30, 40, 50],
+                cellMinWidth: 80,
+                autoSort: false,
+                autoRowHeight: true,
+                height: 'full-200',
+                cols: [
+                    [
+                        { type: 'checkbox', width: 50, align: 'center' },
+                        { type: 'numbers', title: '序号', width: 80, align: 'center' },
+                        { field: 'id', title: '主键', align: 'center' },
+                        {
+                            field: 'type', title: '请假类型', align: 'center', templet: function (d) {
+                                var typeMap = {
+                                    '0': '串行-简单',
+                                    '1': '串行-通过互斥',
+                                    '2': '并行-汇聚',
+                                    '4': '串行-退回互斥',
+                                    '5': '会签',
+                                    '6': '票签',
+                                    '7': '串行-复杂互斥',
+                                    '8': '并行-复杂',
+                                    '9': '办理人表达式',
+                                    '10': '监听器'
+                                };
+                                return typeMap[d.type] || d.type;
+                            }
+                        },
+                        { field: 'start_time', title: '开始时间', width: 100, align: 'center' },
+                        { field: 'end_time', title: '结束时间', width: 100, align: 'center' },
+                        { field: 'day', title: '请假天数', align: 'center' },
+                        { field: 'node_name', title: '流程节点名称', align: 'center' },
+                        {
+                            field: 'flow_status', title: '流程状态', align: 'center', templet: function (d) {
+                                return FlowDict.flowStatusMap(d.flow_status);
+                            }
+                        },
+                        { field: 'create_by', title: '创建者', align: 'center' },
+                        { field: 'create_time', title: '创建时间', width: 180, align: 'center' },
+                        {
+                            field: 'action',
+                            title: '操作',
+                            minWidth: 240,
+                            align: 'center',
+                            templet: function (d) {
+                                var html = '<div style="line-height:24px;word-break:break-all;white-space:normal;">';
+                                if (d.node_code === '2') {
+                                    html += '<a href="javascript:;" lay-event="update" style="margin:0 5px;display:inline-block;color:#1E9FFF;">修改</a>';
+                                    html += '<a href="javascript:;" lay-event="submit" style="margin:0 5px;display:inline-block;color:#5FB878;">提交审批</a>';
+                                    html += '<a href="javascript:;" lay-event="delete" style="margin:0 5px;display:inline-block;color:#FF5722;">删除</a>';
+                                }
+                                if (d.node_type !== 2) {
+                                    html += '<a href="javascript:;" lay-event="revoke" style="margin:0 5px;display:inline-block;color:#1E9FFF;">撤销</a>';
+                                    html += '<a href="javascript:;" lay-event="taskBack" style="margin:0 5px;display:inline-block;color:#1E9FFF;">拿回</a>';
+                                    html += '<a href="javascript:;" lay-event="termination" style="margin:0 5px;display:inline-block;color:#FF5722;">终止</a>';
+                                }
+                                html += '<a href="javascript:;" lay-event="viewFlow" style="margin:0 5px;display:inline-block;color:#1E9FFF;">流程图</a>';
+                                html += '</div>';
+                                return html;
+                            }
+                        }]
+                ],
+                done: function (res, curr, count) {
+                    // 表格渲染完成后的回调
+                }
+            });
+
+            // 搜索
+            $('#search').on('click', function () {
+                var type = $('#type').val();
+                var day = $('#day').val();
+                var flowStatus = $('#flow_status').val();
+                var createBy = $('#create_by').val();
+                var createTime = $('#create_time').val();
+
+                var query = {
+                    type: type,
+                    day: day,
+                    flowStatus: flowStatus,
+                    createBy: createBy
+                };
+
+                if (createTime) {
+                    var timeRange = createTime.split(' - ');
+                    query.beginCreateTime = timeRange[0];
+                    query.endCreateTime = timeRange[1];
+                }
+
+                tableIns.reload({
+                    where: query,
+                    page: {
+                        curr: 1
+                    }
+                });
+            });
+
+            // 重置
+            $('#reset').on('click', function () {
+                $('#type').val('');
+                $('#day').val('');
+                $('#flow_status').val('');
+                $('#create_by').val('');
+                $('#create_time').val('');
+                form.render();
+                window.refreshTable();
+            });
+
+            // 新增
+            $('#add').on('click', function () {
+                layer.open({
+                    type: 2,
+                    title: '新增请假申请',
+                    content: '/app/yflow/leave/insert',
+                    area: ['800px', '600px'],
+                    shadeClose: true
+                });
+            });
+
+            // 修改
+            $('#edit').on('click', function () {
+                var checkStatus = table.checkStatus('leaveTable');
+                if (checkStatus.data.length !== 1) {
+                    layui.popup.failure('请选择一条数据进行修改');
+                    return;
+                }
+                var data = checkStatus.data[0];
+                layer.open({
+                    type: 2,
+                    title: '修改请假申请',
+                    content: '/app/yflow/leave/update?id=' + data.id,
+                    area: ['800px', '600px'],
+                    shadeClose: true
+                });
+            });
+
+            // 删除
+            $('#delete').on('click', function () {
+                var checkStatus = table.checkStatus('leaveTable');
+                if (checkStatus.data.length === 0) {
+                    layui.popup.failure('请选择要删除的数据');
+                    return;
+                }
+                var ids = checkStatus.data.map(item => item.id);
+                layer.confirm('是否确认删除选中的数据项？', function (index) {
+                    LeaveApi.batchDelLeave(ids, function (res) {
+                        if (res.code === 0) {
+                            layer.close(index);
+                            tableIns.reload();
+                            layui.popup.success('删除成功');
+                        } else {
+                            layui.popup.failure(res.msg);
+                        }
+                    });
+                });
+            });
+
+
+            // 表格事件
+            table.on('tool(leaveTable)', function (obj) {
+                var data = obj.data;
+                var layEvent = obj.event;
+
+                if (layEvent === 'update') {
+                    // 修改
+                    layer.open({
+                        type: 2,
+                        title: '修改请假申请',
+                        content: '/app/yflow/leave/update?id=' + data.id,
+                        area: ['800px', '600px'],
+                        shadeClose: true
+                    });
+                } else if (layEvent === 'submit') {
+                    // 提交审批
+                    layer.confirm('是否确认提交审批？', function (index) {
+                        var flowStatus = '';
+                        LeaveApi.submit(data.id, flowStatus, function (res) {
+                            if (res.code === 0) {
+                                layer.close(index);
+                                tableIns.reload();
+                                layui.popup.success('提交审批成功');
+                            } else {
+                                layui.popup.failure(res.msg);
+                            }
+                        });
+                    });
+                } else if (layEvent === 'delete') {
+                    // 删除
+                    layer.confirm('是否确认删除请假申请编号为"' + data.id + '"的数据项？', function (index) {
+                        LeaveApi.delLeave(data.id, function (res) {
+                            if (res.code === 0) {
+                                layer.close(index);
+                                tableIns.reload();
+                                layui.popup.success('删除成功');
+                            } else {
+                                layui.popup.failure(res.msg);
+                            }
+                        });
+                    });
+                } else if (layEvent === 'revoke') {
+                    // 撤销
+                    layer.confirm('是否确认撤销流程？', function (index) {
+                        LeaveApi.revoke(data.id, function (res) {
+                            if (res.code === 0) {
+                                layer.close(index);
+                                tableIns.reload();
+                                layui.popup.success('撤销成功');
+                            } else {
+                                layui.popup.failure(res.msg);
+                            }
+                        });
+                    });
+                } else if (layEvent === 'taskBack') {
+                    // 拿回
+                    layer.confirm('是否确认拿回任务？', function (index) {
+                        LeaveApi.taskBackByInsId(data.id, function (res) {
+                            if (res.code === 0) {
+                                layer.close(index);
+                                tableIns.reload();
+                                layui.popup.success('拿回成功');
+                            } else {
+                                layui.popup.failure(res.msg);
+                            }
+                        });
+                    });
+                } else if (layEvent === 'termination') {
+                    // 终止
+                    layer.confirm('是否确认终止流程？', function (index) {
+                        LeaveApi.termination(data, function (res) {
+                            if (res.code === 0) {
+                                layer.close(index);
+                                tableIns.reload();
+                                layui.popup.success('终止成功');
+                            } else {
+                                layui.popup.failure(res.msg);
+                            }
+                        });
+                    });
+                } else if (layEvent === 'viewFlow') {
+                    // 查看流程图
+                    if (data.instance_id) {
+                        parent.layui.admin.addTab('flow-view-' + data.instance_id, '流程图', '/app/yflow/definition/chart?insId=' + data.instance_id + '&disabled=true');
+                    } else {
+                        layui.popup.failure('流程实例ID不存在');
+                    }
+                }
+            });
+
+            // 刷新表格数据
+            window.refreshTable = function () {
+                table.reloadData("leaveTable", {
+                    scrollPos: "fixed",
+                    done: function (res, curr) {
+                        if (curr > 1 && res.data && !res.data.length) {
+                            curr = curr - 1;
+                            table.reloadData("leaveTable", {
+                                page: {
+                                    curr: curr
+                                },
+                            });
+                        }
+                    }
+                });
+            };
+        });
+    </script>
+</body>
+
+</html>

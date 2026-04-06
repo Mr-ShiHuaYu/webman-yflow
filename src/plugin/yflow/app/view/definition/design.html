@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>流程设计</title>
+    <link rel="stylesheet" href="/app/admin/component/pear/css/pear.css" />
+    <link rel="stylesheet" href="/app/admin/admin/css/reset.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .flow-container {
+            width: 100%;
+            height: 100vh;
+        }
+        #warmChart {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="flow-container">
+        <iframe id="warmChart" src=""></iframe>
+    </div>
+
+    <script src="/app/admin/component/layui/layui.js?v=2.8.12"></script>
+    <script src="/app/admin/component/pear/pear.js"></script>
+    <script>
+        layui.use(['layer'], function() {
+            var layer = layui.layer;
+            var $ = layui.$;
+
+            // 获取URL参数
+            function getUrlParam(name) {
+                return layui.url().search[name]
+            }
+
+            // 获取token
+            function getToken() {
+                var token = localStorage.getItem('token');
+                if (!token) {
+                    // 尝试从cookie中获取
+                    var cookieValue = document.cookie
+                        .split('; ')
+                        .find(row => row.startsWith('token='))
+                        ?.split('=')[1];
+                    if (cookieValue) {
+                        token = decodeURIComponent(cookieValue);
+                    }
+                }
+                return token || '';
+            }
+
+            // 初始化流程设计器
+            function initFlowDesigner() {
+                // 流程定义id
+                var id = getUrlParam('id');
+                // 是否只显示设计器, true:只显示设计器 false:显示基础信息和设计器
+                var onlyDesignShow = getUrlParam('onlyDesignShow');
+                // 是否可编辑 , true:不可标记 false:可标记
+                var disabled = getUrlParam('disabled');
+                var baseUrl = '/app/yflow/y-flow-ui/index.html?id=' + (id || '') + '&onlyDesignShow=' + (onlyDesignShow || '') + '&disabled=' + (disabled || '');
+                var token = getToken();
+                var url = baseUrl + '&Authorization=Bearer ' + token;
+
+                $('#warmChart').attr('src', url);
+            }
+
+            // 处理消息
+            function handleMessage(event) {
+                console.log(event.data.method, event);
+                switch (event.data.method) {
+                    case "close":
+                        close();
+                        break;
+                }
+            }
+
+            // 关闭页面
+            function close() {
+                // 刷新流程定义列表
+                parent.layui.table.reload('definitionTable');
+                // 关闭当前标签页
+                parent.layui.admin.closeCurrentTab();
+            }
+
+            // 处理主题
+            function handleTheme(theme) {
+                // 获取目标窗口对象
+                var targetWindow = document.getElementById('warmChart').contentWindow;
+                targetWindow.postMessage({type: theme}, "*");
+            }
+
+            // 初始化
+            initFlowDesigner();
+
+            // 监听消息
+            window.addEventListener("message", handleMessage);
+
+            // 页面卸载时移除监听
+            window.addEventListener("beforeunload", function() {
+                window.removeEventListener("message", handleMessage);
+            });
+        });
+    </script>
+</body>
+</html>

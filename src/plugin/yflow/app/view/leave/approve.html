@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>请假申请</title>
+    <link rel="stylesheet" href="/app/admin/component/pear/css/pear.css"/>
+    <link rel="stylesheet" href="/app/admin/admin/css/reset.css"/>
+    <style>
+        .layui-form-item {
+            margin-bottom: 15px;
+        }
+        .layui-form-label {
+            width: 100px;
+        }
+        .layui-input-block {
+            margin-left: 130px;
+        }
+    </style>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="" id="leaveForm">
+            <input type="hidden" name="business_id" id="business_id">
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">申请人</label>
+                <div class="layui-input-block">
+                    <input type="text" name="applicant" id="applicant" class="layui-input" readonly>
+                </div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">请假类型</label>
+                <div class="layui-input-block">
+                    <select name="type" id="type" lay-verify="required">
+                        <option value="">请选择请假类型</option>
+                        <option value="annual">年假</option>
+                        <option value="sick">病假</option>
+                        <option value="personal">事假</option>
+                        <option value="marry">婚假</option>
+                        <option value="maternity">产假</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">请假天数</label>
+                <div class="layui-input-block">
+                    <input type="number" name="day" id="day" placeholder="请输入请假天数" class="layui-input" lay-verify="required|number">
+                </div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">开始时间</label>
+                <div class="layui-input-block">
+                    <input type="text" name="start_time" id="start_time" placeholder="选择开始日期" class="layui-input" lay-verify="required">
+                </div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">结束时间</label>
+                <div class="layui-input-block">
+                    <input type="text" name="end_time" id="end_time" placeholder="选择结束日期" class="layui-input" lay-verify="required">
+                </div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">请假原因</label>
+                <div class="layui-input-block">
+                    <textarea name="reason" id="reason" placeholder="请输入请假原因" class="layui-textarea" lay-verify="required"></textarea>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/app/admin/component/layui/layui.js?v=2.8.12"></script>
+<script>
+    layui.use(['form', 'laydate'], function () {
+        var form = layui.form;
+        var laydate = layui.laydate;
+        var $ = layui.jquery;
+
+        // 获取 URL 参数
+        function getUrlParam(name) {
+            return layui.url().search[name]
+        }
+
+        var businessId = getUrlParam('business_id');
+        $('#business_id').val(businessId);
+
+        // 初始化日期选择器
+        laydate.render({
+            elem: '#start_time',
+            type: 'datetime',
+            format: 'yyyy-MM-dd HH:mm:ss'
+        });
+
+        laydate.render({
+            elem: '#end_time',
+            type: 'datetime',
+            format: 'yyyy-MM-dd HH:mm:ss'
+        });
+
+        // 模拟加载业务数据（实际情况应该从后端 API 获取）
+        if (businessId) {
+            // TODO: 调用 API 获取业务数据并填充表单
+            console.log('加载业务数据，business_id:', businessId);
+            // 示例：填充当前用户
+            $('#applicant').val('张三');
+        }
+
+        form.render();
+    });
+
+    // 提供给父窗口调用的方法，获取表单数据
+    window.getFormData = function() {
+        var formData = {};
+        $('#leaveForm').serializeArray().map(function(item) {
+            formData[item.name] = item.value;
+        });
+        return formData;
+    };
+</script>
+</body>
+</html>

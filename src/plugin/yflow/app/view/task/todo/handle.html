@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>任务办理</title>
+    <link rel="stylesheet" href="/app/admin/component/pear/css/pear.css"/>
+    <link rel="stylesheet" href="/app/admin/admin/css/reset.css"/>
+    <style>
+        .layui-form-item {
+            margin-bottom: 15px;
+        }
+
+        .layui-form-label {
+            width: 100px;
+        }
+
+        .layui-input-block {
+            margin-left: 130px;
+        }
+
+        .layui-textarea {
+            min-height: 100px;
+        }
+
+        .approval-actions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e6e6e6;
+            text-align: center;
+        }
+
+        .approval-actions .layui-btn {
+            margin: 0 10px;
+        }
+    </style>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="" id="handle_form">
+            <input type="hidden" name="task_id" id="task_id">
+
+            <!-- 动态表单容器 -->
+            <div id="dynamic_form_container"></div>
+
+            <!-- 跳转节点选择（任意跳转时显示） -->
+            <div class="layui-form-item" id="jump_node_div" style="display: none;">
+                <label class="layui-form-label">跳转节点</label>
+                <div class="layui-input-block">
+                    <select name="node_code" id="node_code" lay-verify="required">
+                        <option value="">请选择跳转节点</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 自定义流程状态 -->
+<!--            <div class="layui-form-item">-->
+<!--                <label class="layui-form-label">自定义流程状态</label>-->
+<!--                <div class="layui-input-block">-->
+<!--                    <input type="text" name="flow_status" id="flow_status" placeholder="可不填，使用默认流程状态"-->
+<!--                           class="layui-input">-->
+<!--                    <div class="layui-form-mid layui-word-aux">提示：不填写使用系统默认流程状态</div>-->
+<!--                </div>-->
+<!--            </div>-->
+
+            <!-- 审批意见 -->
+            <div class="layui-form-item" id="approval_opinion_div" style="display: none;">
+                <label class="layui-form-label">审批意见</label>
+                <div class="layui-input-block">
+                    <textarea name="message" id="message" placeholder="请输入审批意见"
+                              class="layui-textarea"></textarea>
+                </div>
+            </div>
+
+            <!-- 审批操作按钮 -->
+            <div class="approval-actions" id="approval_actions_div" style="display: none;">
+                <button type="button" class="layui-btn layui-btn-normal" id="btn_pass">审批通过</button>
+                <button type="button" class="layui-btn layui-btn-warm" id="btn_reject">退回</button>
+                <button type="button" class="layui-btn layui-btn-danger" id="btn_reject_last" style="display: none;">
+                    驳回到上一个任务
+                </button>
+                <button type="button" class="layui-btn layui-bg-cyan" id="btn_task_back" style="display: none;">
+                    拿回
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/app/admin/component/layui/layui.js?v=2.8.12"></script>
+<script src="/app/admin/component/pear/pear.js"></script>
+<script src="/app/yflow/api/flow/leave.js"></script>
+<script src="/app/yflow/api/flow/execute.js"></script>
+<script>
+    layui.use(['form', 'layer', 'jquery', 'popup'], function () {
+        var form = layui.form;
+        var layer = layui.layer;
+        var $ = layui.jquery;
+
+        // 获取 URL 参数
+        function getUrlParam(name) {
+            return layui.url().search[name]
+        }
+
+        var task_id = getUrlParam('task_id');
+        var business_id = getUrlParam('business_id');
+        var show_any_node = getUrlParam('show_any_node') === 'true';
+        var showApprovalFields = true;
+
+        // 初始化表单数据
+        function initFormData() {
+            ExecuteApi.getTaskById(task_id, function (res) {
+                if (res.code === 0) {
+                    var data = res.data;
+                    $('#task_id').val(data.id);
+                    // 根据不同情况加载表单
+                    if (!data.form_path) {
+                        data.form_path = 'system/leave/approve.html'; // 默认表单
+                    }
+                    if (data.form_custom === 'N') {
+                        // 使用表单路径 - 通过 iframe 嵌入外部表单页面
+                        loadExternalForm(data.form_path, data.id, business_id, show_any_node);
+                    } else if (data.form_custom === 'Y') {
+                        // 使用动态表单 - 加载统一表单页面并传入 formPath 参数
+                        loadDynamicForm(data.form_path, data.id, business_id, show_any_node);
+                    } else {
+                        // 没有自定义表单，显示默认字段
+                        showDefaultFields();
+                    }
+
+                    // 如果是任意跳转，加载可跳转节点列表
+                    if (show_any_node) {
+                        loadAnyNodeList(data.instance_id);
+                        $('#jump_node_div').show();
+                    }
+
+                    form.render();
+
+                    // 控制审批意见和按钮的显示/隐藏
+                    if (showApprovalFields) {
+                        $('#approval_opinion_div').show();
+                        $('#approval_actions_div').show();
+
+                        // 控制驳回到上一个任务和拿回按钮的显示/隐藏
+                        if (!show_any_node) {
+                            $('#btn_reject_last').show();
+                            $('#btn_task_back').show();
+                        } else {
+                            $('#btn_reject_last').hide();
+                            $('#btn_task_back').hide();
+                        }
+                    } else {
+                        $('#approval_opinion_div').hide();
+                        $('#approval_actions_div').hide();
+                    }
+                } else {
+                    layui.popup.failure(res.msg);
+                }
+            });
+        }
+
+        // 加载外部表单（form_custom = 'N'）
+        function loadExternalForm(formPath, taskId, businessId, showAnyNode) {
+            // 创建 iframe 嵌入外部表单页面
+            var iframeHtml = '<iframe id="customFormIframe" src="' + formPath + '?business_id=' + businessId + '&task_id=' + taskId + '&show_any_node=' + showAnyNode + '" ' +
+                'style="width:100%;height:auto;min-height:200px;border:none;display:block;"></iframe>';
+            $('#dynamic_form_container').html(iframeHtml);
+            // 启动定时高度调整
+            startHeightAdjustment('customFormIframe');
+        }
+
+        // 加载动态表单（form_custom = 'Y'）
+        function loadDynamicForm(formPath, taskId, businessId, showAnyNode) {
+            // 可以加载一个通用的动态表单页面，根据 formPath 渲染不同表单
+            var iframeHtml = '<iframe id="dynamicFormIframe" src="/app/yflow/form/dynamic?form_id=' + formPath + '&business_id=' + businessId + '&task_id=' + taskId + '&show_any_node=' + showAnyNode + '" ' +
+                'style="width:100%;height:auto;min-height:200px;border:none;display:block;"></iframe>';
+            $('#dynamic_form_container').html(iframeHtml);
+            // 启动定时高度调整
+            startHeightAdjustment('dynamicFormIframe');
+        }
+
+        // 定时检查并调整iframe高度（用于动态内容）
+        function startHeightAdjustment(iframeId) {
+            var iframe = document.getElementById(iframeId);
+            if (!iframe) return;
+
+            var intervalId = setInterval(function() {
+                try {
+                    var iframeDoc = iframe.contentWindow.document;
+                    if (iframeDoc && iframeDoc.body) {
+                        var height = iframeDoc.body.scrollHeight || 400;
+                        var offsetHeight = iframeDoc.body.offsetHeight;
+                        var scrollHeight = iframeDoc.documentElement ? iframeDoc.documentElement.scrollHeight : 0;
+                        var newHeight = Math.max(height, offsetHeight, scrollHeight, 200);
+                        iframe.style.height = newHeight + 'px';
+                    }
+                } catch (e) {
+                    clearInterval(intervalId);
+                }
+            }, 100);
+
+            // 3秒后停止调整
+            setTimeout(function() {
+                clearInterval(intervalId);
+            }, 3000);
+        }
+
+        // 显示默认字段
+        function showDefaultFields() {
+            var html = `<div class="layui-form-item">
+                <label class="layui-form-label">流程名称</label>
+                <div class="layui-input-block">
+                    <input type="text" name="flow_name" id="flow_name" class="layui-input" readonly>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">任务名称</label>
+                <div class="layui-input-block">
+                    <input type="text" name="node_name" id="node_name" class="layui-input" readonly>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">审批人</label>
+                <div class="layui-input-block">
+                    <input type="text" name="approver" id="approver" class="layui-input" readonly>
+                </div>
+            </div>`;
+            $('#dynamic_form_container').prepend(html);
+
+            // 重新填充数据
+            ExecuteApi.getTaskById(task_id, function (res) {
+                if (res.code === 0) {
+                    $('#flow_name').val(res.data.flow_name);
+                    $('#node_name').val(res.data.node_name);
+                    $('#approver').val(res.data.approver);
+                }
+            });
+        }
+
+        // 加载可跳转节点列表
+        function loadAnyNodeList(instanceId) {
+            ExecuteApi.anyNodeList(instanceId, function (res) {
+                if (res.code === 0 && res.data) {
+                    var options = '<option value="">请选择跳转节点</option>';
+                    res.data.forEach(function (node) {
+                        options += '<option value="' + node.node_code + '">' + node.node_name + '</option>';
+                    });
+                    $('#node_code').html(options);
+                    form.render('select');
+                }
+            });
+        }
+
+        // 提交表单
+        function submitHandle(skipType) {
+            // 收集 iframe 中的表单数据
+            let customFormData = getIframeData();
+
+            // 主表单数据
+            let formData = {};
+            $('#handle_form').serializeArray().map(function (item) {
+                formData[item.name] = item.value;
+            });
+
+            // 设置必填字段
+            formData.task_id = task_id;
+            formData.business_id = business_id;
+            formData.skip_type = skipType;
+            formData.message = formData.message || '';
+            formData.flow_status = formData.flow_status || '';
+            formData.node_code = formData.node_code || '';
+
+            // 将iframe表单数据作为单独的key
+            formData.iframe_data = customFormData;
+
+            // 如果是任意跳转，需要 node_code
+            if (show_any_node && !formData.node_code) {
+                return layui.popup.failure('请选择跳转节点');
+            }
+
+            // 发送请求
+            LeaveApi.handle(formData, function (res) {
+                if (res.code === 0) {
+                    layui.popup.success('办理成功', function () {
+                        parent.refreshTable && parent.refreshTable();
+                        var index = parent.layer.getFrameIndex(window.name);
+                        parent.layer.close(index);
+                    });
+                } else {
+                    layui.popup.failure(res.msg);
+                }
+            });
+        }
+
+        // 驳回到上一个任务
+        function rejectLastHandle() {
+            // 收集 iframe 中的表单数据
+            let customFormData = getIframeData();
+
+            var formData = {};
+            $('#handle_form').serializeArray().map(function (item) {
+                formData[item.name] = item.value;
+            });
+
+            formData.task_id = task_id;
+            formData.business_id = business_id;
+            formData.message = formData.message || '';
+            formData.flow_status = formData.flow_status || '';
+            formData.iframe_data = customFormData;
+
+            // 发送请求
+            LeaveApi.rejectLast(formData, function (res) {
+                if (res.code === 0) {
+                    layui.popup.success('驳回到上一个任务成功', function () {
+                        parent.refreshTable && parent.refreshTable();
+                        var index = parent.layer.getFrameIndex(window.name);
+                        parent.layer.close(index);
+                    });
+                } else {
+                    layui.popup.failure(res.msg);
+                }
+            });
+        }
+
+        // 拿回
+        function taskBackHandle() {
+            // 收集 iframe 中的表单数据
+            let customFormData = getIframeData();
+
+            var formData = {};
+            $('#handle_form').serializeArray().map(function (item) {
+                formData[item.name] = item.value;
+            });
+
+            formData.task_id = task_id;
+            formData.business_id = business_id;
+            formData.message = formData.message || '';
+            formData.flow_status = formData.flow_status || '';
+            formData.iframe_data = customFormData;
+
+            // 发送请求
+            LeaveApi.taskBack(formData, function (res) {
+                if (res.code === 0) {
+                    layui.popup.success('拿回到最近办理的任务成功', function () {
+                        parent.refreshTable && parent.refreshTable();
+                        var index = parent.layer.getFrameIndex(window.name);
+                        parent.layer.close(index);
+                    });
+                } else {
+                    layui.popup.failure(res.msg);
+                }
+            });
+        }
+
+        function getIframeData() {
+            // 收集 iframe 中的表单数据
+            let customFormData = {};
+            let iframeWindow = document.getElementById('customFormIframe') || document.getElementById('dynamicFormIframe');
+            if (iframeWindow && iframeWindow.contentWindow) {
+                let contentWindow = iframeWindow.contentWindow;
+                let iframeForm = $('form', contentWindow.document).serializeArray();
+                if (iframeForm) {
+                    iframeForm.map(function (item) {
+                        customFormData[item.name] = item.value;
+                    })
+                }
+            }
+            return customFormData;
+        }
+
+        // 事件绑定
+        $('#btn_pass').on('click', function () {
+            submitHandle('PASS');
+        });
+
+        $('#btn_reject').on('click', function () {
+            submitHandle('REJECT');
+        });
+
+        $('#btn_reject_last').on('click', function () {
+            rejectLastHandle();
+        });
+
+        $('#btn_task_back').on('click', function () {
+            taskBackHandle();
+        });
+
+        // 初始化
+        initFormData();
+    });
+</script>
+</body>
+</html>

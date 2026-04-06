@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>新增请假申请</title>
+    <link rel="stylesheet" href="/app/admin/component/pear/css/pear.css"/>
+    <link rel="stylesheet" href="/app/admin/admin/css/reset.css"/>
+</head>
+
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="" lay-filter="leaveForm" id="leaveForm">
+            <div class="layui-form-item">
+                <label class="layui-form-label">请假类型</label>
+                <div class="layui-input-block">
+                    <select name="type" id="type" lay-filter="type" required lay-verify="required|type">
+                        <option value="">请选择请假类型</option>
+                        <option value="0">串行-简单</option>
+                        <option value="1">串行-通过互斥</option>
+                        <option value="2">并行-汇聚</option>
+                        <option value="4">串行-退回互斥</option>
+                        <option value="5">会签</option>
+                        <option value="6">票签</option>
+                        <option value="7">串行-复杂互斥</option>
+                        <option value="8">并行-复杂</option>
+                        <option value="9">办理人表达式</option>
+                        <option value="10">监听器</option>
+                    </select>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">请假原因</label>
+                <div class="layui-input-block">
+                        <textarea name="reason" id="reason" placeholder="请输入请假原因" class="layui-textarea" required
+                                  lay-verify="required|reason"></textarea>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">开始时间</label>
+                <div class="layui-input-block">
+                    <input type="text" name="start_time" id="start_time" placeholder="请选择开始时间"
+                           class="layui-input"
+                           required lay-verify="required|start_time" readonly>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">结束时间</label>
+                <div class="layui-input-block">
+                    <input type="text" name="end_time" id="end_time" placeholder="请选择结束时间" class="layui-input"
+                           required lay-verify="required|end_time" readonly>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">请假天数</label>
+                <div class="layui-input-block">
+                    <input type="text" name="day" id="day" placeholder="请输入请假天数" class="layui-input" required
+                           lay-verify="required|day" readonly>
+                </div>
+            </div>
+<!--            <div class="layui-form-item">-->
+<!--                <label class="layui-form-label">自定义流程状态</label>-->
+<!--                <div class="layui-input-block">-->
+<!--                    <input type="text" name="flow_status" id="flow_status" placeholder="请输入自定义流程状态"-->
+<!--                           class="layui-input">-->
+<!--                    <div class="layui-form-mid layui-word-aux">-->
+<!--                        y-flow工作流默认内置了一套流程状态，如果此字段填写可以自定义流程状态-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+            <div class="layui-form-item">
+                <label class="layui-form-label">抄送人</label>
+                <div class="layui-input-block">
+                    <select name="additional_handler" id="additional_handler" xm-select="additional_handler"
+                            lay-filter="additional_handler" class="layui-select">
+                        <!-- 动态加载用户列表 -->
+                    </select>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-input-block">
+                    <button type="button" class="pear-btn pear-btn-primary" lay-submit lay-filter="leaveForm">提交
+                    </button>
+                    <button type="button" class="pear-btn" id="cancelBtn">取消</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/app/admin/component/layui/layui.js?v=2.8.12"></script>
+<script src="/app/admin/component/pear/pear.js"></script>
+<script src="/app/yflow/api/flow/leave.js"></script>
+<script>
+    layui.use(['form', 'layer', 'laydate', 'popup', 'select'], function () {
+        var form = layui.form;
+        var layer = layui.layer;
+        var laydate = layui.laydate;
+        var $ = layui.$;
+
+        // 日期选择器
+        laydate.render({
+            elem: '#start_time',
+            type: 'date',
+            format: 'yyyy-MM-dd',
+            done: function (value, date) {
+                calculateLeaveDays();
+            }
+        });
+
+        laydate.render({
+            elem: '#end_time',
+            type: 'date',
+            format: 'yyyy-MM-dd',
+            done: function (value, date) {
+                calculateLeaveDays();
+            }
+        });
+
+        // 计算请假天数
+        function calculateLeaveDays() {
+            var startTime = $('#start_time').val();
+            var endTime = $('#end_time').val();
+            if (startTime && endTime) {
+                var start = new Date(startTime);
+                var end = new Date(endTime);
+                var diffTime = Math.abs(end - start);
+                var diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // 包含开始和结束的当天
+                $('#day').val(diffDays);
+            } else {
+                $('#day').val('');
+            }
+        }
+
+        // 加载用户列表
+        function loadUserList() {
+            LeaveApi.listUser(function (res) {
+                if (res.code === 0) {
+                    var users = res.data;
+                    var select = $('#additional_handler');
+                    select.empty();
+                    users.forEach(function (user) {
+                        select.append('<option value="' + user.id + '">' + user.nickname + '</option>');
+                    });
+                    form.render('select');
+                    layui.select.render('additional_handler')
+                }
+            });
+        }
+
+        // 加载用户列表
+        loadUserList();
+
+        // 验证规则
+        form.verify({
+            type: function (value) {
+                if (!value) {
+                    return '请选择请假类型';
+                }
+            },
+            reason: function (value) {
+                if (!value) {
+                    return '请输入请假原因';
+                }
+            },
+            start_time: function (value) {
+                if (!value) {
+                    return '请选择开始时间';
+                }
+            },
+            end_time: function (value) {
+                if (!value) {
+                    return '请选择结束时间';
+                }
+                var startTime = $('#start_time').val();
+                if (startTime && new Date(value) < new Date(startTime)) {
+                    return '结束时间不能早于开始时间';
+                }
+            },
+            day: function (value) {
+                if (!value) {
+                    return '请输入请假天数';
+                }
+                if (isNaN(value) || value <= 0) {
+                    return '请假天数必须为正数';
+                }
+            }
+        });
+
+        form.on('submit(leaveForm)', function (data) {
+            var flowStatus = $('#flow_status').val()||'';
+            LeaveApi.addLeave(data.field, flowStatus, function (res) {
+                if (res.code === 0) {
+                    layui.popup.success('新增成功', function () {
+                        parent.refreshTable();
+                        parent.layer.closeAll();
+                    });
+                } else {
+                    layui.popup.failure(res.msg);
+                }
+            });
+            return false;
+        });
+
+
+        // 取消
+        $('#cancelBtn').on('click', function () {
+            parent.layer.closeAll();
+        });
+    });
+</script>
+</body>
+
+</html>

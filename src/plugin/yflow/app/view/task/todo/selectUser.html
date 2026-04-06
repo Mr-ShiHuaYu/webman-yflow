@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>选择用户</title>
+    <link rel="stylesheet" href="/app/admin/component/pear/css/pear.css"/>
+    <link rel="stylesheet" href="/app/admin/admin/css/reset.css"/>
+    <style>
+        .select-user-container {
+            padding: 20px;
+        }
+
+        .selected-tags {
+            margin-bottom: 15px;
+            min-height: 32px;
+        }
+
+        .selected-tags .layui-badge {
+            margin-right: 8px;
+            cursor: pointer;
+        }
+
+        .selected-tags .layui-badge .layui-icon {
+            margin-left: 5px;
+        }
+
+        .search-form .layui-inline {
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+
+        .user-table {
+            margin-top: 15px;
+        }
+
+        .checkbox-center {
+            text-align: center;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+<div class="select-user-container">
+    <!-- 搜索表单 -->
+    <form class="layui-form search-form" lay-filter="search-form">
+        <div class="layui-inline">
+            <label class="layui-form-label">用户名称</label>
+            <div class="layui-input-inline">
+                <input type="text" name="user_name" placeholder="请输入用户名称" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-inline">
+            <label class="layui-form-label">手机号码</label>
+            <div class="layui-input-inline">
+                <input type="text" name="phonenumber" placeholder="请输入手机号码" class="layui-input">
+            </div>
+        </div>
+        <div class="layui-inline">
+            <button type="button" class="pear-btn pear-btn-primary pear-btn-sm" lay-submit lay-filter="table-query">
+                <i class="layui-icon layui-icon-search"></i>搜索
+            </button>
+            <button type="reset" class="pear-btn pear-btn-sm" lay-filter="table-reset">
+                <i class="layui-icon layui-icon-refresh"></i>重置
+            </button>
+        </div>
+    </form>
+
+    <!-- 已选用户标签 -->
+    <div class="selected-tags" id="selectedTags">
+        <!-- 动态生成已选标签 -->
+    </div>
+
+    <!-- 用户表格 -->
+    <table id="userTable" lay-filter="userTable"></table>
+
+    <button class="pear-btn pear-btn-primary pear-btn-sm" id="submitBtn">
+        <i class="layui-icon layui-icon-ok"></i>确定
+    </button>
+</div>
+
+
+<script src="/app/admin/component/layui/layui.js?v=2.8.12"></script>
+<script src="/app/admin/component/pear/pear.js"></script>
+<script src="/app/yflow/api/flow/execute.js"></script>
+<script>
+    layui.use(['table', 'form', 'popup'], function () {
+        var table = layui.table;
+        var form = layui.form;
+        var $ = layui.$;
+        var popup = layui.popup;
+
+        // 获取URL参数
+        function getUrlParam(name) {
+            return layui.url().search[name];
+        }
+
+        // 父页面传递的参数
+        var selectType = getUrlParam('type') || '';  // 转办、委派为单选，其他为多选
+        selectType = selectType ? decodeURIComponent(selectType) : '';
+        var taskId = getUrlParam('taskId') || '';
+        var operatorType = getUrlParam('operatorType') || '';
+        // selected 参数需要手动解码
+        var selectedParam = getUrlParam('selected');
+        var selectedUsers = selectedParam ? decodeURIComponent(selectedParam).split(',') : [];
+        var isSingleSelect = ['转办', '委派'].includes(selectType);
+
+        // 已选中的用户列表
+        var checkedUserList = [];
+
+        // 初始化已选用户
+        if (selectedUsers && selectedUsers.length > 0 && selectedUsers[0]) {
+            checkedUserList = selectedUsers.map(function (user_id) {
+                return {user_id: user_id, user_name: user_id};
+            });
+        }
+
+        // 渲染已选标签
+        function renderSelectedTags() {
+            var html = '';
+            if (checkedUserList.length > 0) {
+                checkedUserList.forEach(function (user) {
+                    html += '<span class="layui-badge layui-bg-blue" data-userid="' + user.user_id + '">';
+                    html += user.user_name || user.user_id;
+                    html += '<i class="layui-icon layui-icon-close" onclick="removeUser(\'' + user.user_id + '\')"></i>';
+                    html += '</span>';
+                });
+            } else {
+                html = '<span class="layui-word-aux">请选择用户</span>';
+            }
+            document.getElementById('selectedTags').innerHTML = html;
+        }
+
+        // 移除用户
+        window.removeUser = function (user_id) {
+            checkedUserList = checkedUserList.filter(function (u) {
+                return u.user_id !== user_id*1;
+            });
+            renderSelectedTags();
+            refreshTableCheckbox();
+        };
+
+        // 刷新表格复选框状态
+        function refreshTableCheckbox() {
+            var tableData = table.cache['userTable'] || [];
+            tableData.forEach(function (row, index) {
+                var isChecked = checkedUserList.some(function (u) {
+                    return u.user_id === row.user_id;
+                });
+                table.setRowChecked('userTable', {
+                    index: index, // 选中行的下标。 0 表示第一行index
+                    checked: isChecked
+                });
+            });
+        }
+
+        // 表格渲染
+        var tableIns = table.render({
+            elem: '#userTable',
+            url: ExecuteApi.interactiveTypeSysUserUrl,
+            method: 'get',
+            where: {
+                taskId: taskId,
+                operatorType: operatorType
+            },
+            page: true,
+            size: 'sm',
+            limit: 10,
+            limits: [10, 20, 30, 40, 50],
+            cols: [[
+                {type: 'checkbox', width: 50, align: 'center'},
+                {type: 'numbers', title: '序号', width: 60, align: 'center'},
+                {field: 'user_id', title: '用户编号', width: 100, align: 'center'},
+                {field: 'username', title: '用户名称', align: 'center'},
+                {field: 'nickname', title: '用户昵称', align: 'center'},
+                // {
+                //     field: 'status', title: '状态', width: 80, align: 'center', templet: function (d) {
+                //         return d.status == '1' ?'<span class="layui-badge layui-bg-gray">停用</span>': '<span class="layui-badge">正常</span>';
+                //     }
+                // }
+            ]],
+            skin: 'line',
+            toolbar: true,
+            defaultToolbar: ['refresh'],
+            done: function (res) {
+                // 处理已选状态
+                refreshTableCheckbox()
+            }
+        });
+
+        // 搜索
+        form.on('submit(table-query)', function (data) {
+            tableIns.reload({
+                where: data.field,
+                page: {
+                    curr: 1
+                }
+            });
+            return false;
+        });
+
+        // 重置
+        form.on('submit(table-reset)', function (data) {
+            tableIns.reload({
+                where: [],
+                page: {
+                    curr: 1
+                }
+            });
+            return false;
+        });
+
+        function getUserInfo(user) {
+            return {
+                user_id: user.user_id,
+                user_name: user.username || user.nickname || user.user_id
+            };
+        }
+
+        function handleSingleCheckbox(rowData, checked) {
+            if (!rowData) return;
+
+            if (isSingleSelect) {
+                if (checked) {
+                    checkedUserList = [getUserInfo(rowData)];
+                    // 单选模式下，取消其他选中状态
+                    var tableData = table.cache['userTable'] || [];
+                    tableData.forEach(function (t) {
+                        t.isChecked = (t.user_id === rowData.user_id);
+                    });
+                } else {
+                    checkedUserList = [];
+                }
+            } else {
+                if (checked) {
+                    var exists = checkedUserList.some(function (u) {
+                        return u.user_id === rowData.user_id;
+                    });
+                    if (!exists) {
+                        checkedUserList.push(getUserInfo(rowData));
+                    }
+                } else {
+                    checkedUserList = checkedUserList.filter(function (u) {
+                        return u.user_id !== rowData.user_id;
+                    });
+                }
+            }
+        }
+
+        // 复选框事件
+        table.on('checkbox(userTable)', function (obj) {
+            var tableData = table.cache['userTable'] || [];
+
+            if (obj.type === 'all') {
+                if (obj.checked) {
+                    if (isSingleSelect) {
+                        layui.popup.failure('只能选中一个用户');
+                        refreshTableCheckbox();
+                    } else {
+                        checkedUserList = tableData.map(getUserInfo);
+                    }
+                } else {
+                    checkedUserList = [];
+                }
+            } else {
+                handleSingleCheckbox(obj.data, obj.checked);
+            }
+
+            refreshTableCheckbox();
+            renderSelectedTags();
+        });
+
+        // 表格工具栏事件
+        table.on('toolbar(userTable)', function (obj) {
+            if (obj.event === 'refresh') {
+                tableIns.reload();
+            }
+        });
+
+        // 提交选中的用户
+        $("#submitBtn").click(function () {
+            if (checkedUserList.length === 0) {
+                popup.warning('请选择用户');
+                return;
+            }
+            var selectedValues = checkedUserList.map(function (u) {
+                return u.user_id;
+            });
+
+            // 执行操作
+            ExecuteApi.interactiveType(taskId, selectedValues.join(','), operatorType, function (res) {
+                if (res.code === 0) {
+                    layui.popup.success(selectType + '成功', function () {
+                        parent.refreshTable && parent.refreshTable();
+                        var index = parent.layer.getFrameIndex(window.name);
+                        parent.layer.close(index);
+                    });
+                } else {
+                    layui.popup.failure(res.msg);
+                }
+            });
+        });
+
+        // 初始渲染已选标签
+        renderSelectedTags();
+
+        // 向父页面暴露获取选中用户的方法
+        window.getSelectedUsers = function () {
+            return checkedUserList;
+        };
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>流程图</title>
+    <link rel="stylesheet" href="/app/admin/component/pear/css/pear.css" />
+    <link rel="stylesheet" href="/app/admin/admin/css/reset.css" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .flow-container {
+            width: 100%;
+            height: 100vh;
+        }
+        #warmChart {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="flow-container">
+        <iframe id="warmChart" src=""></iframe>
+    </div>
+
+    <script src="/app/admin/component/layui/layui.js?v=2.8.12"></script>
+    <script src="/app/admin/component/pear/pear.js"></script>
+    <script>
+        layui.use(['layer'], function() {
+            var layer = layui.layer;
+            var $ = layui.$;
+
+            // 获取URL参数
+            function getUrlParam(name) {
+                return layui.url().search[name]
+            }
+
+            // 获取token
+            function getToken() {
+                var token = localStorage.getItem('token');
+                if (!token) {
+                    // 尝试从cookie中获取
+                    var cookieValue = document.cookie
+                        .split('; ')
+                        .find(row => row.startsWith('token='))
+                        ?.split('=')[1];
+                    if (cookieValue) {
+                        token = decodeURIComponent(cookieValue);
+                    }
+                }
+                return token || '';
+            }
+
+            // 初始化流程图
+            function initFlowChart() {
+                // 流程实例ID
+                var insId = getUrlParam('insId');
+                var baseUrl = '/app/yflow/y-flow-ui/index.html?id=' + (insId || '') + '&type=FlowChart';
+                var token = getToken();
+                var url = baseUrl + '&Authorization=Bearer ' + token;
+
+                $('#warmChart').attr('src', url);
+            }
+
+            // 处理主题
+            function handleTheme(theme) {
+                // 获取目标窗口对象
+                var targetWindow = document.getElementById('warmChart').contentWindow;
+                targetWindow.postMessage({type: theme}, "*");
+            }
+
+            // 初始化
+            initFlowChart();
+        });
+    </script>
+</body>
+</html>

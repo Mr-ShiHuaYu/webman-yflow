@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>已办任务管理</title>
+    <link rel="stylesheet" href="/app/admin/component/pear/css/pear.css"/>
+    <link rel="stylesheet" href="/app/admin/admin/css/reset.css"/>
+    <style>
+        .layui-table-cell {
+            height: auto !important;
+            line-height: 24px !important;
+            white-space: normal !important;
+            word-break: break-all !important;
+        }
+
+        .layui-table {
+            width: 100% !important;
+        }
+    </style>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <div class="layui-inline">
+                    <label class="layui-form-label">任务名称</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="node_name" id="node_name" placeholder="请输入任务名称"
+                               class="layui-input">
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">流程状态</label>
+                    <div class="layui-input-inline">
+                        <select name="flow_status" id="flow_status" lay-filter="flow_status">
+                        </select>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <label class="layui-form-label">审批时间</label>
+                    <div class="layui-input-inline">
+                        <input type="text" name="create_time" id="create_time" placeholder="选择审批时间"
+                               class="layui-input" readonly>
+                    </div>
+                </div>
+                <div class="layui-inline">
+                    <button type="button" class="pear-btn pear-btn-primary pear-btn-sm" id="search">搜索</button>
+                    <button type="button" class="pear-btn pear-btn-sm" id="reset">重置</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="doneTable" lay-filter="doneTable"></table>
+    </div>
+</div>
+
+<script src="/app/admin/component/layui/layui.js?v=2.8.12"></script>
+<script src="/app/admin/component/pear/pear.js"></script>
+<script src="/app/yflow/api/flow/execute.js"></script>
+<script src="/app/yflow/api/flow/flowDict.js"></script>
+<script>
+    layui.use(['table', 'layer', 'form', 'laydate', 'popup'], function () {
+        var table = layui.table;
+        var layer = layui.layer;
+        var form = layui.form;
+        var laydate = layui.laydate;
+        var $ = layui.$;
+
+        // 初始化日期选择器
+        laydate.render({
+            elem: '#create_time',
+            type: 'datetime',
+            format: 'yyyy-MM-dd HH:mm:ss'
+        });
+
+        // 初始化流程状态下拉框
+        FlowDict.initFlowStatusSelect('flow_status');
+
+        // 表格初始化
+        var tableIns = table.render({
+            elem: '#doneTable',
+            url: ExecuteApi.donePageUrl,
+            method: 'get',
+            page: true,
+            size: 'sm',
+            limit: 10,
+            limits: [10, 20, 30, 40, 50],
+            cellMinWidth: 80,
+            autoSort: false,
+            autoRowHeight: true,
+            height: 'full-200',
+            cols: [[
+                {type: 'numbers', title: '序号', align: 'center'},
+                {field: 'instance_id', title: '流程实例ID', align: 'center'},
+                {field: 'flow_name', title: '流程名称', align: 'center'},
+                {field: 'node_name', title: '任务名称', align: 'center'},
+                {field: 'approver', title: '审批人', align: 'center'},
+                {
+                    field: 'cooperate_type', title: '协作类型', align: 'center', templet: function (d) {
+                        return FlowDict.cooperateTypeMap(d.cooperate_type);
+                    }
+                },
+                {field: 'collaborator', title: '协作人', align: 'center'},
+                {
+                    field: 'flow_status', title: '流程状态', align: 'center', templet: function (d) {
+                        return FlowDict.flowStatusMap(d.flow_status);
+                    }
+                },
+                {field: 'message', title: '审批意见', align: 'center'},
+                {field: 'create_time', title: '审批时间', width: 160, align: 'center'},
+                {
+                    field: 'action', title: '操作', minWidth: 150, align: 'center', templet: function (d) {
+                        var html = '<div style="line-height:24px;word-break:break-all;white-space:normal;">';
+                        html += '<a href="javascript:;" lay-event="doneList" style="margin:0 5px;display:inline-block;color:#1E9FFF;">审批记录</a>';
+                        html += '<a href="javascript:;" lay-event="viewFlow" style="margin:0 5px;display:inline-block;color:#1E9FFF;">流程图</a>';
+                        if (d.ext) {
+                            html += '<a href="javascript:;" lay-event="viewDetail" style="margin:0 5px;display:inline-block;color:#5FB878;">查看</a>';
+                        }
+                        html += '</div>';
+                        return html;
+                    }
+                }
+            ]],
+            done: function (res, curr, count) {
+                // 表格渲染完成后的回调
+            }
+        });
+
+        // 搜索
+        $('#search').on('click', function () {
+            var nodeName = $('#node_name').val();
+            var flowStatus = $('#flow_status').val();
+            var createTime = $('#create_time').val();
+
+            var query = {
+                nodeName: nodeName,
+                flowStatus: flowStatus,
+                createTime: createTime
+            };
+
+            tableIns.reload({
+                where: query,
+                page: {
+                    curr: 1
+                }
+            });
+        });
+
+        // 重置
+        $('#reset').on('click', function () {
+            $('#node_name').val('');
+            $('#flow_status').val('');
+            $('#create_time').val('');
+            form.render();
+            window.refreshTable();
+        });
+
+        // 表格事件
+        table.on('tool(doneTable)', function (obj) {
+            var data = obj.data;
+            var layEvent = obj.event;
+
+            if (layEvent === 'doneList') {
+                // 审批记录
+                // layer.open({
+                //     type: 2,
+                //     title: '审批记录',
+                //     content: '/app/yflow/execute/doneList?instance_id=' + data.instance_id,
+                //     area: ['800px', '600px'],
+                //     shadeClose: true
+                // });
+
+                parent.layui.admin.addTab('done-list-tab-' + data.instance_id, '审批记录', '/app/yflow/execute/doneList?instance_id=' + data.instance_id)
+
+            } else if (layEvent === 'viewFlow') {
+                // 查看流程图
+                parent.layer.open({
+                    type: 2,
+                    title: '流程图',
+                    content: '/app/yflow/definition/chart?insId=' + data.instance_id + '&disabled=true',
+                    area: ['85%', '70%'],
+                    shadeClose: true
+                });
+            } else if (layEvent === 'viewDetail') {
+                // 查看详情
+                if (data.ext) {
+                    try {
+                        var extData = JSON.parse(data.ext);
+                        layer.open({
+                            type: 1,
+                            title: '业务详情',
+                            content: '<div style="padding:20px;">' + JSON.stringify(extData, null, 2) + '</div>',
+                            area: ['600px', '400px'],
+                            shadeClose: true
+                        });
+                    } catch (e) {
+                        layui.popup.failure('详情数据格式错误');
+                    }
+                }
+            }
+        });
+
+        // 刷新表格数据
+        window.refreshTable = function () {
+            table.reloadData("doneTable", {
+                scrollPos: "fixed",
+                done: function (res, curr) {
+                    if (curr > 1 && res.data && !res.data.length) {
+                        curr = curr - 1;
+                        table.reloadData("doneTable", {
+                            page: {
+                                curr: curr
+                            },
+                        })
+                    }
+                }
+            });
+        }
+    });
+</script>
+</body>
+</html>

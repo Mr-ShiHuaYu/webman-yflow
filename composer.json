@@ -1,0 +1,21 @@
+{
+  "name": "ysh/webman-yflow",
+  "type": "project",
+  "authors": [
+    {
+      "name": "acehua",
+      "email": "974988176@qq.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Ysh\\WebmanYflow\\": "src/"
+    }
+  },
+  "license": "MIT",
+  "description": "Webman YFlow",
+  "require": {
+    "php": ">=8.1",
+    "webman/admin": "~2.0"
+  }
+}

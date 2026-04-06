@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <title>新增流程定义</title>
+    <link rel="stylesheet" href="/app/admin/component/pear/css/pear.css"/>
+    <link rel="stylesheet" href="/app/admin/admin/css/reset.css"/>
+</head>
+<body>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" id="definitionForm" lay-filter="definitionForm" action="">
+            <div class="layui-tab">
+                <ul class="layui-tab-title">
+                    <li class="layui-this">基础设置</li>
+                    <li>监听器</li>
+                </ul>
+                <div class="layui-tab-content">
+                    <!-- 基础设置 -->
+                    <div class="layui-tab-item layui-show">
+                        <div class="layui-form-item">
+                            <label class="layui-form-label required">流程编码</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="flowCode" lay-verify="required" placeholder="请输入流程编码"
+                                       maxlength="40" class="layui-input">
+                            </div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label required">流程名称</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="flowName" lay-verify="required" placeholder="请输入流程名称"
+                                       maxlength="100" class="layui-input">
+                            </div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label required">设计器模型</label>
+                            <div class="layui-input-block">
+                                <input type="radio" name="modelValue" value="CLASSICS" title="经典模型" checked>
+                                <input type="radio" name="modelValue" value="MIMIC" title="仿钉钉模型">
+                                <span style="color: #ff4949; margin-left: 20px;">保存后不支持修改！</span>
+                            </div>
+                        </div>
+
+                        <div class="layui-form-item">
+                            <label class="layui-form-label">流程类别</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="category" placeholder="请输入流程类别" maxlength="20"
+                                       class="layui-input">
+                            </div>
+                        </div>
+
+                        <div class="layui-form-item layui-hide">
+                            <label class="layui-form-label required">审批表单是否自定义</label>
+                            <div class="layui-input-block">
+                                <select name="formCustom" lay-verify="required" lay-filter="formCustom">
+                                    <option value="N">表单路径</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="layui-form-item" id="formPathDiv">
+                            <label class="layui-form-label required">审批表单路径</label>
+                            <div class="layui-input-block">
+                                <input type="text" name="formPath" lay-verify="required"
+                                       placeholder="请输入审批表单路径,必须/开头" maxlength="100" class="layui-input">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 监听器 -->
+                    <div class="layui-tab-item">
+                        <table class="layui-table" id="listenerTable">
+                            <thead>
+                            <tr>
+                                <th style="width: 150px;">类型</th>
+                                <th>路径</th>
+                                <th style="width: 80px;">操作</th>
+                            </tr>
+                            </thead>
+                            <tbody id="listenerBody">
+                            <!-- 监听器行将通过JS动态添加 -->
+                            </tbody>
+                        </table>
+                        <button type="button" class="pear-btn pear-btn-primary" id="addListener">增加行</button>
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <div class="layui-input-block">
+                    <button type="button" class="pear-btn pear-btn-primary" lay-submit lay-filter="submitBtn">提交
+                    </button>
+                    <button type="button" class="pear-btn" id="cancelBtn">取消</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="/app/admin/component/layui/layui.js?v=2.8.12"></script>
+<script src="/app/admin/component/pear/pear.js"></script>
+<script src="/app/yflow/api/flow/definition.js"></script>
+<script>
+    layui.use(['form', 'layer', 'popup'], function () {
+        var form = layui.form;
+        var layer = layui.layer;
+        var $ = layui.$;
+
+        // 初始化监听器表格
+        function initListenerTable() {
+            addListenerRow();
+        }
+
+        // 添加监听器行
+        function addListenerRow() {
+            var html = '<tr>' +
+                '<td>' +
+                '<select name="listenerType[]" class="layui-select">' +
+                '<option value="">请选择类型</option>' +
+                '<option value="start">开始</option>' +
+                '<option value="assignment">分派</option>' +
+                '<option value="finish">完成</option>' +
+                '<option value="create">创建</option>' +
+                '</select>' +
+                '</td>' +
+                '<td><input type="text" name="listenerPath[]" placeholder="请输入路径" class="layui-input"></td>' +
+                '<td><button type="button" class="pear-btn pear-btn-danger pear-btn-sm deleteListener">删除</button></td>' +
+                '</tr>';
+            $('#listenerBody').append(html);
+            form.render('select');
+        }
+
+        // 增加监听器行
+        $('#addListener').on('click', function () {
+            addListenerRow();
+        });
+
+        // 删除监听器行
+        $(document).on('click', '.deleteListener', function () {
+            $(this).closest('tr').remove();
+        });
+
+        // 表单自定义切换
+        form.on('select(formCustom)', function (data) {
+            if (data.value === 'N') {
+                $('#formPathDiv').show();
+            } else {
+                $('#formPathDiv').hide();
+            }
+        });
+
+        // 提交按钮点击事件
+        form.on('submit(submitBtn)', function (data) {
+            // 处理监听器数据
+            var listenerTypes = [];
+            var listenerPaths = [];
+            $('select[name="listenerType[]"]').each(function () {
+                listenerTypes.push($(this).val());
+            });
+            $('input[name="listenerPath[]"]').each(function () {
+                listenerPaths.push($(this).val());
+            });
+
+            // 构建表单数据
+            var formData = form.val('definitionForm');
+            formData.listenerType = listenerTypes.join(',');
+            formData.listenerPath = listenerPaths.join('@@');
+
+            // 发送请求
+            DefinitionApi.addDefinition(formData, function (res) {
+                if (res.code === 0) {
+                    layui.popup.success('新增成功', function () {
+                        parent.refreshTable();
+                        parent.layer.closeAll();
+                    });
+                } else {
+                    layui.popup.failure(res.msg);
+                }
+            });
+        })
+
+        // 取消按钮点击事件
+        $('#cancelBtn').on('click', function () {
+            parent.layer.closeAll();
+        });
+
+        // 初始化
+        initListenerTable();
+        form.render();
+    });
+</script>
+</body>
+</html>
